@@ -1,0 +1,17 @@
+{
+  "name": "Seek o’Clock",
+  "short_name": "Seek o’Clock",
+  "description": "Dice roller for the Hosea 10:12 seek-the-Lord clock game.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#141A16",
+  "theme_color": "#141A16",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

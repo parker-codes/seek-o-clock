@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Seek o’Clock</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#141A16">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Seek o’Clock">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E7ECE4; --surface:#F4F7F2; --ink:#1E2A22; --muted:#5C6B60; --line:#CBD5C7;
+  --felt:#3F6150; --felt-edge:#2E4A3C; --die:#FBFCFA; --die-edge:#DCE3DA; --pip:#1E2A22;
+  --blue:#4F7FA8; --blue-edge:#3D6890; --blue-pip:#FFFFFF; --accent:#4F7FA8;
+  color-scheme:light; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#141A16; --surface:#1D2520; --ink:#E6ECE5; --muted:#9AA89D; --line:#2C3830;
+    --felt:#24392D; --felt-edge:#18271F; --die:#EEF2EC; --die-edge:#C9D2C6; --pip:#18201B;
+    --blue:#6E9CC6; --blue-edge:#567FA6; --blue-pip:#0F1A24; --accent:#7FAAD0; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141A16; --surface:#1D2520; --ink:#E6ECE5; --muted:#9AA89D; --line:#2C3830;
+  --felt:#24392D; --felt-edge:#18271F; --die:#EEF2EC; --die-edge:#C9D2C6; --pip:#18201B;
+  --blue:#6E9CC6; --blue-edge:#567FA6; --blue-pip:#0F1A24; --accent:#7FAAD0; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",ui-rounded,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-tap-highlight-color:transparent}
+main{height:100%;max-width:56rem;margin:0 auto;padding:.9rem 1.25rem 1rem;display:flex;flex-direction:column;gap:.75rem}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+header h1{font-size:1.5rem;font-weight:800;margin:0;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted);font-size:.95rem}
+
+.readout{display:flex;align-items:center;gap:1.1rem;min-height:4.6rem}
+.time{flex:none;min-width:2.2ch;font-size:clamp(3.4rem,11vw,4.8rem);font-weight:800;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.time .ampm{font-size:.4em;font-weight:600;letter-spacing:0;color:var(--accent);margin-left:.12em}
+.time.idle{color:var(--line)}
+.prompt{margin:0;color:var(--muted);font-size:1.05rem;line-height:1.4;max-width:28rem}
+.prompt strong{color:var(--ink);font-weight:600}
+
+.tray{position:relative;flex:1 1 auto;min-height:15rem;border-radius:1.5rem;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 40%,var(--felt),var(--felt-edge));
+  box-shadow:inset 0 0 0 6px color-mix(in srgb,var(--felt-edge) 70%,#000 30%),inset 0 10px 30px rgba(0,0,0,.25);
+  touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;perspective:1600px}
+.tray.holding{cursor:grabbing}
+.hint{position:absolute;left:0;right:0;bottom:.8rem;text-align:center;color:rgba(255,255,255,.72);font-size:.9rem;pointer-events:none;transition:opacity .3s}
+.hint.gone{opacity:0}
+
+.shadow{position:absolute;left:0;top:0;width:var(--s);height:var(--s);border-radius:30%;
+  background:rgba(0,0,0,.38);filter:blur(6px);pointer-events:none;will-change:transform}
+.die{position:absolute;left:0;top:0;width:var(--s);height:var(--s);transform-style:preserve-3d;pointer-events:none;will-change:transform}
+.cube{position:absolute;inset:0;transform-style:preserve-3d}
+.face{position:absolute;inset:0;border-radius:14%;background:var(--die);
+  box-shadow:inset 0 0 calc(var(--s)*.08) color-mix(in srgb,var(--die-edge) 90%,transparent);
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:14%;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.die.blue .face{background:var(--blue);box-shadow:inset 0 0 calc(var(--s)*.08) var(--blue-edge)}
+.core{position:absolute;left:6%;top:6%;width:88%;height:88%;background:var(--die-edge);backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.die.blue .core{background:var(--blue-edge)}
+.c1{transform:translateZ(calc(var(--s)*.47))}
+.c6{transform:rotateY(180deg) translateZ(calc(var(--s)*.47))}
+.c2{transform:rotateY(90deg) translateZ(calc(var(--s)*.47))}
+.c5{transform:rotateY(-90deg) translateZ(calc(var(--s)*.47))}
+.c3{transform:rotateX(90deg) translateZ(calc(var(--s)*.47))}
+.c4{transform:rotateX(-90deg) translateZ(calc(var(--s)*.47))}
+.e{position:absolute;left:0;top:0;width:100%;height:100%;background:var(--die-edge)}
+.die.blue .e{background:var(--blue-edge)}
+.ex{transform:rotateX(90deg) scale(.97)}
+.ey{transform:rotateY(90deg) scale(.97)}
+.ez{transform:scale(.97)}
+.p{display:block;width:calc(var(--s)*.15);height:calc(var(--s)*.15);border-radius:50%;place-self:center;background:transparent}
+.p.on{background:var(--pip);box-shadow:inset 0 2px 2px rgba(0,0,0,.35)}
+.die.blue .p.on{background:var(--blue-pip);box-shadow:inset 0 2px 2px rgba(0,0,0,.25)}
+.f1{transform:translateZ(calc(var(--s)/2))}
+.f6{transform:rotateY(180deg) translateZ(calc(var(--s)/2))}
+.f2{transform:rotateY(90deg) translateZ(calc(var(--s)/2))}
+.f5{transform:rotateY(-90deg) translateZ(calc(var(--s)/2))}
+.f3{transform:rotateX(90deg) translateZ(calc(var(--s)/2))}
+.f4{transform:rotateX(-90deg) translateZ(calc(var(--s)/2))}
+
+.controls{display:flex;gap:.75rem;flex:none}
+button{font:inherit;font-weight:600;font-size:1.05rem;border-radius:999px;padding:.95rem 1.25rem;cursor:pointer;
+  color:var(--ink);background:var(--surface);border:1px solid var(--line)}
+button.primary{flex:1;background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.history{flex:none;display:flex;align-items:center;gap:.75rem;min-height:2.2rem}
+.history h2{flex:none;font-size:.95rem;margin:0}
+.chips{flex:1;display:flex;gap:.4rem;margin:0;padding:0 0 2px;list-style:none;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chips li{flex:none;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:.25rem .7rem;font-variant-numeric:tabular-nums;font-weight:600}
+.empty{flex:1;color:var(--muted);font-size:.92rem;margin:0}
+.chips:empty{display:none}
+.history button{flex:none;font-size:.85rem;padding:.35rem .8rem;font-weight:400}
+.rules{margin:0;font-size:.88rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Seek o’Clock</h1>
+    <p>“It is time to seek the Lord.” Hosea 10:12</p>
+  </header>
+
+  <div class="readout">
+    <div class="time idle" id="time" aria-live="polite">?</div>
+    <p class="prompt" id="prompt">Grab the dice and fling them, or tap Roll.</p>
+  </div>
+
+  <div class="tray" id="tray" aria-label="Dice tray. Swipe to throw the dice.">
+    <div class="hint" id="hint">Swipe to throw</div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" id="rollBtn">Roll</button>
+  </div>
+
+  <section class="history">
+    <h2>Times rolled</h2>
+    <ul class="chips" id="chips"></ul>
+    <p class="empty" id="empty">None yet</p>
+    <button id="clearBtn">Clear</button>
+  </section>
+  <p class="rules">White dice add up to the hour. Blue die: odd is AM, even is PM.</p>
+</main>
+
+<script>
+(function(){
+  const tray=document.getElementById('tray'), hint=document.getElementById('hint');
+  const timeEl=document.getElementById('time'), promptEl=document.getElementById('prompt');
+  const chips=document.getElementById('chips'), empty=document.getElementById('empty');
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const PIPS={1:[4],2:[2,6],3:[2,4,6],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+  // die rotation (rx, ry) that brings face n toward the viewer
+  const ORIENT={1:[0,0],6:[0,180],2:[0,-90],5:[0,90],3:[-90,0],4:[90,0]};
+
+  let S=60, F=1;
+  function sizeDice(){ S=Math.round(Math.min(104,Math.max(48,Math.min(tray.clientWidth,tray.clientHeight)*0.17))); F=S/60; tray.style.setProperty('--s',S+'px'); }
+  sizeDice();
+
+  function makeDie(blue){
+    const sh=document.createElement('div'); sh.className='shadow';
+    const d=document.createElement('div'); d.className='die'+(blue?' blue':'');
+    const c=document.createElement('div'); c.className='cube';
+    ['ex','ey','ez'].forEach(k=>{ const e=document.createElement('div'); e.className='e '+k; c.appendChild(e); });
+    for(let n=1;n<=6;n++){ const k=document.createElement('div'); k.className='core c'+n; c.appendChild(k); }
+    for(let n=1;n<=6;n++){
+      const f=document.createElement('div'); f.className='face f'+n;
+      for(let i=0;i<9;i++){ const p=document.createElement('span'); p.className='p'+(PIPS[n].includes(i)?' on':''); f.appendChild(p); }
+      c.appendChild(f);
+    }
+    d.appendChild(c); tray.appendChild(sh); tray.appendChild(d);
+    return {el:d,cube:c,sh,x:0,y:0,face:1+Math.floor(Math.random()*6),yaw:(Math.random()-.5)*40,rx:0,ry:0,hop:0};
+  }
+  const dice=[makeDie(false),makeDie(false),makeDie(true)];
+
+  function draw(d){
+    const lift=d.hop*S*0.6;
+    d.el.style.transform=`translate(${d.x-S/2}px,${d.y-S/2-lift}px) scale(${1+d.hop*0.25})`;
+    d.cube.style.transform=`rotateZ(${d.yaw}deg) rotateX(${d.rx}deg) rotateY(${d.ry}deg)`;
+    d.sh.style.transform=`translate(${d.x-S/2+4+lift*0.4}px,${d.y-S/2+6+lift*0.3}px) scale(${1-d.hop*0.3})`;
+    d.sh.style.opacity=String(1-d.hop*0.6);
+  }
+  function rest(d){ const o=ORIENT[d.face]; d.rx=o[0]; d.ry=o[1]; d.hop=0; draw(d); }
+  function placeIdle(){
+    const w=tray.clientWidth,h=tray.clientHeight;
+    [[.28,.42],[.52,.55],[.74,.4]].forEach((p,i)=>{ dice[i].x=w*p[0]; dice[i].y=h*p[1]; rest(dice[i]); });
+  }
+  placeIdle();
+
+  // ---------- physics pre-simulation ----------
+  const DT=1/120;
+  function simulate(init){
+    const w=tray.clientWidth,h=tray.clientHeight,r=S*0.62,wall=6+S*0.5;
+    const st=init.map(o=>({...o}));
+    const frames=st.map(()=>[]);
+    let bounces=st.map(()=>[]);
+    for(let step=0;step<120*5;step++){
+      let moving=false;
+      for(const b of st){
+        b.x+=b.vx*DT; b.y+=b.vy*DT; b.yaw+=b.vyaw*DT;
+        const sp=Math.hypot(b.vx,b.vy);
+        if(sp>0){ const dec=Math.min(sp,(220*F+sp*1.6)*DT); b.vx-=b.vx/sp*dec; b.vy-=b.vy/sp*dec; }
+        b.vyaw*=1-2.5*DT;
+        if(b.x<wall){b.x=wall;b.vx=Math.abs(b.vx)*0.55;b.vyaw+=b.vy*0.3;b.hit=true}
+        if(b.x>w-wall){b.x=w-wall;b.vx=-Math.abs(b.vx)*0.55;b.vyaw-=b.vy*0.3;b.hit=true}
+        if(b.y<wall){b.y=wall;b.vy=Math.abs(b.vy)*0.55;b.vyaw-=b.vx*0.3;b.hit=true}
+        if(b.y>h-wall){b.y=h-wall;b.vy=-Math.abs(b.vy)*0.55;b.vyaw+=b.vx*0.3;b.hit=true}
+        if(sp>6*F) moving=true;
+      }
+      for(let i=0;i<st.length;i++)for(let j=i+1;j<st.length;j++){
+        const a=st[i],b=st[j],dx=b.x-a.x,dy=b.y-a.y,dist=Math.hypot(dx,dy)||1,min=r*2;
+        if(dist<min){
+          const nx=dx/dist,ny=dy/dist,ov=(min-dist)/2;
+          a.x-=nx*ov;a.y-=ny*ov;b.x+=nx*ov;b.y+=ny*ov;
+          const rel=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+          if(rel<0){const imp=-(1.5)*rel/2;a.vx-=imp*nx;a.vy-=imp*ny;b.vx+=imp*nx;b.vy+=imp*ny;a.vyaw+=rel*0.4;b.vyaw-=rel*0.4;
+            if(-rel>120*F){a.hit=b.hit=true}}
+        }
+      }
+      st.forEach((b,i)=>{ frames[i].push([b.x,b.y,b.yaw]); if(b.hit){bounces[i].push(step);b.hit=false} });
+      if(!moving && step>30) break;
+    }
+    return {frames,bounces};
+  }
+
+  // ---------- throw playback ----------
+  let anim=null, busy=false;
+  function throwDice(init){
+    busy=true; hint.classList.add('gone');
+    const res=[1,2,3].map(()=>1+Math.floor(Math.random()*6));
+    const {frames,bounces}=simulate(init);
+    const k=90/S; // degrees of roll per pixel travelled (rolling a cube edge over edge)
+    const plans=dice.map((d,i)=>{
+      const fr=frames[i];
+      let tx=0,ty=0; const cx=[0],cy=[0];
+      for(let f=1;f<fr.length;f++){ tx+=fr[f][0]-fr[f-1][0]; ty+=fr[f][1]-fr[f-1][1]; cx.push(tx); cy.push(ty); }
+      return {fr,cx,cy,tx,ty,bounce:bounces[i],o:ORIENT[res[i]],air:0.25+Math.random()*0.15};
+    });
+    dice.forEach((d,i)=>d.face=res[i]);
+    timeEl.classList.add('idle'); timeEl.textContent='…'; promptEl.textContent='Rolling…';
+    if(reduce){ plans.forEach((p,i)=>{const d=dice[i],l=p.fr[p.fr.length-1];d.x=l[0];d.y=l[1];d.yaw=l[2];rest(d)}); finish(res); return; }
+    const t0=performance.now(), n=Math.max(...plans.map(p=>p.fr.length));
+    function tick(now){
+      const t=Math.max(0,(now-t0)/1000), idx=Math.floor(t/DT);
+      dice.forEach((d,i)=>{
+        const p=plans[i], f=Math.min(idx,p.fr.length-1);
+        d.x=p.fr[f][0]; d.y=p.fr[f][1]; d.yaw=p.fr[f][2];
+        d.rx=p.o[0]+k*(p.ty-p.cy[f]);
+        d.ry=p.o[1]-k*(p.tx-p.cx[f]);
+        // airborne arc at the start, small hops on hard bounces
+        let hop=0;
+        if(t<p.air){ hop=Math.sin(Math.PI*t/p.air)*0.9; }
+        for(const b of p.bounce){ const dt=(idx-b)*DT; if(dt>=0&&dt<0.14) hop=Math.max(hop,Math.sin(Math.PI*dt/0.14)*0.3); }
+        d.hop=f>=p.fr.length-1?0:hop;
+        draw(d);
+      });
+      if(idx<n+6) anim=requestAnimationFrame(tick); else { dice.forEach(rest); finish(res); }
+    }
+    anim=requestAnimationFrame(tick);
+  }
+
+  // ---------- results ----------
+  let history=[];
+  try{ history=JSON.parse(localStorage.getItem('seek-history')||'[]'); }catch(e){ history=[]; }
+  function save(){ try{ localStorage.setItem('seek-history',JSON.stringify(history)); }catch(e){} }
+  function renderHistory(){ chips.innerHTML=''; history.forEach(t=>{const li=document.createElement('li');li.textContent=t;chips.appendChild(li)}); empty.hidden=history.length>0; }
+  renderHistory();
+  document.getElementById('clearBtn').addEventListener('click',()=>{ history=[]; save(); renderHistory(); });
+
+  function promptFor(h,pm){
+    if(!pm){ if(h===12||h<5) return 'You’re probably asleep. What could seeking the Lord look like <strong>at this hour</strong>?';
+      if(h<8) return 'What could you do <strong>right after you wake up</strong> to seek Him?';
+      return 'You’re at school. How could you seek Him <strong>there</strong>?'; }
+    if(h===12||h<3) return 'You’re at school. How could you seek Him <strong>there</strong>?';
+    if(h<6) return 'School’s out. How could you seek Him <strong>now</strong>?';
+    if(h<9) return 'What could you do <strong>this evening</strong> to seek Him?';
+    return 'It’s bedtime. How could you seek Him <strong>before sleep</strong>?';
+  }
+  function finish(res){
+    const hour=res[0]+res[1], pm=res[2]%2===0, ap=pm?'PM':'AM';
+    timeEl.classList.remove('idle');
+    timeEl.innerHTML=hour+'<span class="ampm">'+ap+'</span>';
+    promptEl.innerHTML=promptFor(hour,pm);
+    history.push(hour+' '+ap); save(); renderHistory();
+    if(navigator.vibrate){ try{navigator.vibrate(25)}catch(e){} }
+    busy=false;
+  }
+
+  // ---------- grab and fling ----------
+  const OFF=()=>[[-S*0.62,-S*0.2],[S*0.62,-S*0.2],[0,S*0.6]];
+  let holding=false, track=[], jiggle=null;
+  function hold(x,y){
+    const w=tray.clientWidth,h=tray.clientHeight,m=S*0.75;
+    x=Math.min(w-m,Math.max(m,x)); y=Math.min(h-m,Math.max(m,y));
+    OFF().forEach((o,i)=>{ const d=dice[i]; d.x=x+o[0]; d.y=y+o[1]; d.hop=0.55; draw(d); });
+  }
+  function startJiggle(){
+    stopJiggle();
+    jiggle=setInterval(()=>{ dice.forEach(d=>{ d.rx+=(Math.random()-.5)*90; d.ry+=(Math.random()-.5)*90; d.yaw+=(Math.random()-.5)*30; d.hop=0.45+Math.random()*0.2; draw(d); }); },70);
+  }
+  function stopJiggle(){ if(jiggle){clearInterval(jiggle);jiggle=null} }
+  function local(e){ const r=tray.getBoundingClientRect(); return [e.clientX-r.left,e.clientY-r.top]; }
+
+  tray.addEventListener('pointerdown',e=>{
+    if(busy) return;
+    tray.setPointerCapture(e.pointerId); holding=true; tray.classList.add('holding'); hint.classList.add('gone');
+    const [x,y]=local(e); track=[[x,y,performance.now()]]; hold(x,y); startJiggle();
+  });
+  tray.addEventListener('pointermove',e=>{
+    if(!holding) return;
+    const [x,y]=local(e), now=performance.now(); track.push([x,y,now]);
+    while(track.length>2 && now-track[0][2]>90) track.shift();
+    hold(x,y);
+  });
+  function release(){
+    if(!holding) return;
+    holding=false; tray.classList.remove('holding'); stopJiggle();
+    const a=track[0], b=track[track.length-1], dt=Math.max(16,b[2]-a[2])/1000;
+    let vx=(b[0]-a[0])/dt, vy=(b[1]-a[1])/dt, sp=Math.hypot(vx,vy);
+    if(sp<500){ const ang=Math.random()*Math.PI*2; vx=Math.cos(ang)*900; vy=Math.sin(ang)*900; sp=900; }
+    vx*=F; vy*=F; sp*=F;
+    const cap=2800*F; if(sp>cap){ vx*=cap/sp; vy*=cap/sp; }
+    throwDice(dice.map(d=>({x:d.x,y:d.y,vx:vx*(0.85+Math.random()*.3)+(Math.random()-.5)*260*F,vy:vy*(0.85+Math.random()*.3)+(Math.random()-.5)*260*F,yaw:d.yaw,vyaw:(Math.random()-.5)*600})));
+  }
+  tray.addEventListener('pointerup',release);
+  tray.addEventListener('pointercancel',release);
+
+  function buttonRoll(){
+    if(busy||holding) return;
+    const w=tray.clientWidth,h=tray.clientHeight, fromLeft=Math.random()<.5;
+    const sx=fromLeft?S*0.9:w-S*0.9, sy=h-S*0.9;
+    const ang=fromLeft?-(0.35+Math.random()*0.5):Math.PI+(0.35+Math.random()*0.5);
+    const sp=(1500+Math.random()*900)*F;
+    throwDice(OFF().map((o,i)=>({x:sx+o[0]*0.9,y:sy+o[1]*0.9-S*0.3,vx:Math.cos(ang)*sp+(Math.random()-.5)*300*F,vy:Math.sin(ang)*sp+(Math.random()-.5)*300*F,yaw:dice[i].yaw,vyaw:(Math.random()-.5)*600})));
+  }
+  document.getElementById('rollBtn').addEventListener('click',buttonRoll);
+
+  addEventListener('resize',()=>{ if(!busy&&!holding){ sizeDice(); placeIdle(); } });
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){ addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
+</script>
+</body>
+</html>
